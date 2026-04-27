@@ -1,13 +1,13 @@
 # Liquidity Scanner
 
-Liquidity scanner using Binance data.
+A liquidity scanner for cryptocurrencies using Binance data. Detects institutional patterns such as volume absorption and stop hunts (liquidity sweeps).
 
-## Architecture - PHASE 2
+## Architecture
 
 Producer-Consumer pattern with Redis as message broker:
 
 ```
-Binance API → Producer (polls 5m) → [Redis Queue] → Consumer → SignalEngine → Signals API
+Binance API → Producer (polls 5m) → [Redis Queue] → Consumer → SignalEngine → FastAPI
 ```
 
 - **Producer**: Polls Binance klines (5m timeframe) every 5 minutes, publishes to Redis
@@ -38,21 +38,33 @@ Liquidity-Scanner/
 
 ## Installation
 
+### 1. Install Python dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
-Requirements: `requests`, `websockets`, `python-binance`, `redis`, `fastapi`, `uvicorn`
+### 2. Start Redis
 
-**Redis** must be running:
+**Option A - Docker (recommended):**
+```bash
+docker run -d -p 6379:6379 redis
+```
+
+**Option B - Local (Ubuntu/Debian):**
 ```bash
 sudo service redis-server start
 ```
 
-## Usage
+**Option C - WSL:**
+```bash
+sudo service redis-server start
+```
+
+### 3. Run the application
 
 ```bash
-python3 main.py
+python main.py
 ```
 
 This starts:
@@ -91,55 +103,14 @@ This starts:
 | **LIQUIDITY_SWEEP_LOW** | Price breaks recent low but closes back above it (stop hunt) |
 | **LIQUIDITY_SWEEP_HIGH** | Price breaks recent high but closes back below it (stop hunt) |
 
-## PHASE 1 - Features (MVP)
+## Technologies
 
-- [x] Collect Binance klines (candles)
-- [x] Collect recent trades
-- [x] Calculate average volume
-- [x] Detect volume spike (2x average)
-- [x] Console output
-
-## PHASE 2 - Features (Current)
-
-- [x] Producer-Consumer architecture with Redis
-- [x] FastAPI REST API
-- [x] Signal Engine with trading rules
-- [x] ABSORPTION signal detection
-- [x] LIQUIDITY_SWEEP signal detection
-- [x] Signal persistence in Redis
-- [x] System status monitoring
-- [x] CORS enabled for frontend integration
-
-```
-Liquidity-Scanner/
-├── src/
-│   ├── ingestion/      # Data collection (API + WebSocket)
-│   │   └── binance_client.py
-│   ├── processing/     # Volume analysis and spike detection
-│   │   └── volume_analyzer.py
-│   └── output/         # Output (console, API, etc.)
-│       └── console_output.py
-├── main.py             # Entry point
-├── requirements.txt    # Dependencies
-└── README.md
-```
-
-## Installation
-
-```bash
-pip install -r requirements.txt
-```
-
-## Usage
-
-```bash
-python main.py
-```
-
-## PHASE 1 - Features
-
-- [x] Collect Binance klines (candles)
-- [x] Collect recent trades
-- [x] Calculate average volume
-- [x] Detect volume spike (2x average)
-- [x] Console output
+| Technology | Purpose |
+|------------|---------|
+| **Python 3** | Main programming language |
+| **python-binance** | Binance API client (REST) |
+| **Redis** | Message broker + signal storage |
+| **FastAPI** | REST API backend |
+| **uvicorn** | ASGI server |
+| **websockets** | Prepared for real-time streaming |
+| **requests** | HTTP client |
