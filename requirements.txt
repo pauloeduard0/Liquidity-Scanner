@@ -1,3 +1,6 @@
 requests
 websockets
 python-binance
+redis
+fastapi
+uvicorn

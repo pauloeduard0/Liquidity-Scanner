@@ -1,43 +1,61 @@
-"""Liquidity Scanner - PHASE 1 MVP
-Liquidity scanner using Binance data
-Runs continuously, checking volume every minute
+"""Liquidity Scanner - PHASE 2
+Orchestrator: starts producer, consumer, and API server
 """
 
+import threading
 import time
-from src.ingestion.binance_client import BinanceDataIngestion
-from src.processing.volume_analyzer import analyze_klines
-from src.output.console_output import print_alert
+from datetime import datetime
+
+from src.ingestion.producer import Producer
+from src.processing.consumer import Consumer
+
+
+def run_producer():
+    """Run producer in thread"""
+    producer = Producer()
+    producer.run(interval=300)  # 5 minutes to match 5m timeframe
+
+
+def run_consumer():
+    """Run consumer in thread"""
+    consumer = Consumer()
+    consumer.run(poll_interval=30)  # Check every 30s, data comes every 5 min
+
+
+def run_api():
+    """Run FastAPI server"""
+    import uvicorn
+    uvicorn.run("src.api.main:app", host="0.0.0.0", port=8000, reload=False)
+
 
 def main():
-    print("Liquidity Scanner - PHASE 1 MVP")
-    print("Running continuously, checking volume every minute...")
-    print("=" * 50)
+    print("=" * 60)
+    print("  Liquidity Scanner - PHASE 2")
+    print("  Professional Architecture with Redis + FastAPI")
+    print("=" * 60)
+    print()
 
-    # Initialize client
-    ingestion = BinanceDataIngestion()
+    # Start producer thread
+    producer_thread = threading.Thread(target=run_producer, daemon=True)
+    producer_thread.start()
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Producer thread started.")
 
-    # Initialize with first data collection
-    print("\nInitializing with historical data...")
-    klines = ingestion.get_klines(symbol="BTCUSDT", interval="5m", limit=100)
-    print(f"Loaded {len(klines)} candles for baseline.\n")
+    # Start consumer thread
+    consumer_thread = threading.Thread(target=run_consumer, daemon=True)
+    consumer_thread.start()
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Consumer thread started.")
+
+    # Start API in main thread
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Starting API server on http://0.0.0.0:8000")
+    print(f"   Endpoints: /signals, /history, /status")
+    print()
 
     try:
-        while True:
-            # Get fresh candles
-            klines = ingestion.get_klines(symbol="BTCUSDT", interval="5m", limit=100)
-
-            # Analyze volume
-            analysis = analyze_klines(klines, multiplier=2)
-
-            # Output
-            print_alert(analysis, symbol="BTCUSDT")
-
-            # Wait 1 minute before next check
-            print(f"Next check in 60 seconds...\n")
-            time.sleep(60)
-
+        run_api()
     except KeyboardInterrupt:
-        print("\nScanner stopped by user.")
+        print("\nShutting down...")
+        print("Bye!")
+
 
 if __name__ == "__main__":
     main()
