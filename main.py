@@ -13,7 +13,7 @@ from src.processing.consumer import Consumer
 def run_producer():
     """Run producer in thread"""
     producer = Producer()
-    producer.run(interval=300)  # 5 minutes to match 5m timeframe
+    producer.run()  # Default: poll every 5s to track volume accumulation
 
 
 def run_consumer():

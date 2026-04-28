@@ -25,12 +25,12 @@ class Consumer:
                 return None
 
             data = json.loads(data_json)
-            klines = data.get("klines", [])
+            klines = data.get("klines", [])  # Closed klines only
 
             if not klines or len(klines) < 2:
                 return None
 
-            # Analyze volume
+            # Analyze volume (only closed candles)
             analysis = analyze_klines(klines, multiplier=2)
 
             if not analysis:
@@ -43,11 +43,26 @@ class Consumer:
             self._store_signal(signal)
             self._update_status("consumer_alive", datetime.now().isoformat())
 
-            return {"analysis": analysis, "signal": signal}
+            return {"analysis": analysis, "signal": signal, "klines": klines}
 
         except Exception as e:
             print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Consumer error: {e}")
             return None
+
+    def get_current_candle_volume(self):
+        """Get current (open) candle volume from Redis"""
+        try:
+            data = self.redis_client.hgetall("liquidity:current_candle")
+            if data:
+                return {
+                    "volume": float(data.get("volume", 0)),
+                    "high": float(data.get("high", 0)),
+                    "low": float(data.get("low", 0)),
+                    "close": float(data.get("close", 0))
+                }
+        except:
+            pass
+        return None
 
     def _store_signal(self, signal):
         """Store signal in Redis lists (capped)"""
@@ -68,7 +83,7 @@ class Consumer:
         """Update system status in Redis hash"""
         self.redis_client.hset("liquidity:status", key, value)
 
-    def run(self, poll_interval=5):
+    def run(self, poll_interval=30):
         """Run consumer loop"""
         self.running = True
         print("Consumer started...")
@@ -79,11 +94,22 @@ class Consumer:
             if result:
                 analysis = result["analysis"]
                 signal = result["signal"]
+                klines = result["klines"]
+
+                # Get most recent closed candle volume
+                last_closed = klines[-1]
+                closed_vol = float(last_closed[5])
+                closed_time = datetime.fromtimestamp(int(last_closed[6])/1000).strftime('%H:%M:%S')
 
                 if signal:
                     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] SIGNAL: {signal['type']} - {signal.get('reason', '')}")
-                elif analysis:
-                    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] No signal. Volume: {analysis['current_volume']:.2f} (avg: {analysis['avg_volume']:.2f})")
+                else:
+                    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] No signal. Last closed: {closed_time} vol={closed_vol:.2f} (avg: {analysis['avg_volume']:.2f})")
+
+            # Also show current candle volume (from producer tracking)
+            current = self.get_current_candle_volume()
+            if current:
+                print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Current candle: vol={current['volume']:.2f} high={current['high']:.2f} low={current['low']:.2f}")
 
             time.sleep(poll_interval)
 

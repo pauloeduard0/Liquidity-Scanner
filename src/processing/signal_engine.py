@@ -27,10 +27,11 @@ class SignalEngine:
         if absorption_signal:
             return absorption_signal
 
-        # Check for liquidity sweep
-        sweep_signal = self._check_liquidity_sweep(klines)
-        if sweep_signal:
-            return sweep_signal
+        # Check for liquidity sweep (only if there's volume spike)
+        if analysis.get("is_spike"):
+            sweep_signal = self._check_liquidity_sweep(klines)
+            if sweep_signal:
+                return sweep_signal
 
         return None
 
